@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Catálogo de Filmes</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    .card {
+      cursor: pointer;
+    }
+
+    .card-img-top {
+      height: 250px;
+      object-fit: cover;
+    }
+  </style>
+</head>
+
+<body class="bg-light">
+
+  <div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2>Catálogo de Filmes</h2>
+      <button class="btn btn-primary" onclick="mostrarFormulario()">Novo Filme</button>
+    </div>
+    <div id="catalogoView">
+      <div class="row" id="catalogo"></div>
+    </div>
+
+    <!-- Cadastro novo filme -->
+    <div id="formView" class="d-none">
+      <h4>Novo Filme</h4>
+
+      <input class="form-control mb-2" id="fTitulo" placeholder="Título (único)">
+      <input class="form-control mb-2" id="generosFilme" placeholder="Gêneros (separe por vírgula)">
+      <input class="form-control mb-2" id="imagemFilme" placeholder="URL da Imagem">
+      <textarea class="form-control mb-2" id="descricaoFilme" placeholder="Descrição"></textarea>
+
+      <div class="row mb-2">
+        <div class="col">
+          <input type="number" class="form-control" id="notaFilme" placeholder="Avaliação (1 a 10)" min="1" max="10">
+        </div>
+        <div class="col">
+          <input type="number" class="form-control" id="quantidadeAvaliacoesFilme" placeholder="Qtd avaliações" min="1">
+        </div>
+      </div>
+
+      <button class="btn btn-success" onclick="salvarNovo()">Salvar</button>
+      <button class="btn btn-secondary" onclick="voltar()">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Edição de filme cadastrado -->
+  <div class="modal fade" id="modalFilme" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+
+        <div class="modal-header">
+          <h5 class="modal-title">Editar Filme</h5>
+          <button class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <input type="hidden" id="eTituloHidden">
+
+          <label>Título</label>
+          <input class="form-control mb-2" id="eTitulo" disabled>
+
+          <label>Imagem (URL)</label>
+          <input class="form-control mb-2" id="eImagem">
+
+          <label>Gêneros</label>
+          <input class="form-control mb-2" id="eGeneros">
+
+          <label>Descrição</label>
+          <textarea class="form-control mb-2" id="eDescricao"></textarea>
+
+          <div class="row">
+            <div class="col">
+              <label>Avaliação</label>
+              <input type="number" class="form-control" id="eAvaliacao" min="1" max="10">
+            </div>
+            <div class="col">
+              <label>Qtd Avaliações</label>
+              <input type="number" class="form-control" id="eQtd" min="1">
+            </div>
+            <div class="col">
+              <label>Data</label>
+              <input type="date" class="form-control" id="eData">
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-danger" onclick="abrirConfirmacao()">Deletar</button>
+          <button class="btn btn-success" onclick="salvarEdicao()">Salvar</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de confirmação da deleção -->
+  <div class="modal fade" id="modalConfirmacao" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5>Confirmação</h5>
+        </div>
+        <div class="modal-body">
+          Deseja realmente deletar este filme?
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button class="btn btn-danger" onclick="deletar()">Deletar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function getFilmes() {
+      return JSON.parse(localStorage.getItem('filmes')) || []
+    }
+
+    function setFilmes(filme) {
+      localStorage.setItem('filmes', JSON.stringify(filme))
+    }
+
+    function renderizar() {
+      catalogo.innerHTML = ''
+      getFilmes().forEach(filme => {
+        catalogo.innerHTML += `
+        <div class="col-md-4 mb-3">
+          <div class="card h-100" onclick="abrirModal('${filme.titulo}')">
+            <img src="${filme.imagem}" class="card-img-top">
+            <div class="card-body">
+              <h5>${filme.titulo}</h5>
+              <small class="text-muted">
+                ⭐ ${filme.avaliacao} (${filme.quantidadeAvaliacoes} ${filme.quantidadeAvaliacoes == 1 ? 'avaliação' : 'avaliações'})
+              </small>
+              <div class="mt-2">
+                ${filme.generos.split(',').map(g =>
+          `<span class="badge bg-secondary me-1">${g.trim()}</span>`
+        ).join('')}
+              </div>
+            </div>
+          </div>
+        </div>`
+      })
+    }
+
+    function mostrarFormulario() {
+      catalogoView.classList.add('d-none')
+      formView.classList.remove('d-none')
+    }
+
+    function voltar() {
+      formView.classList.add('d-none')
+      catalogoView.classList.remove('d-none')
+    }
+
+    function salvarNovo() {
+      const filmes = getFilmes()
+      const titulo = fTitulo.value.trim()
+
+      if (!titulo) return alert('Informe o título')
+
+      if (filmes.some(filme => filme.titulo.toLowerCase() === titulo.toLowerCase())) {
+        alert('Já existe um filme com esse título.')
+        return
+      }
+
+      filmes.push({
+        titulo,
+        generos: generosFilme.value,
+        imagem: imagemFilme.value,
+        descricao: descricaoFilme.value,
+        avaliacao: notaFilme.value || 1,
+        quantidadeAvaliacoes: quantidadeAvaliacoesFilme.value || 1,
+        data: new Date().toISOString().split('T')[0]
+      })
+
+      setFilmes(filmes)
+      voltar()
+      renderizar()
+    }
+
+    function abrirModal(titulo) {
+      const filme = getFilmes().find(filme => filme.titulo === titulo)
+
+      eTituloHidden.value = filme.titulo
+      eTitulo.value = filme.titulo
+      eImagem.value = filme.imagem
+      eGeneros.value = filme.generos
+      eDescricao.value = filme.descricao
+      eAvaliacao.value = filme.avaliacao
+      eQtd.value = filme.quantidadeAvaliacoes
+      eData.value = filme.data
+
+      new bootstrap.Modal(modalFilme).show()
+    }
+
+    function salvarEdicao() {
+      const filmes = getFilmes()
+      const i = filmes.findIndex(filme => filme.titulo === eTituloHidden.value)
+
+      filmes[i] = {
+        ...filmes[i],
+        imagem: eImagem.value,
+        generos: eGeneros.value,
+        descricao: eDescricao.value,
+        avaliacao: eAvaliacao.value,
+        quantidadeAvaliacoes: eQtd.value,
+        data: eData.value
+      }
+
+      setFilmes(filmes)
+      bootstrap.Modal.getInstance(modalFilme).hide()
+      renderizar()
+    }
+
+    function abrirConfirmacao() {
+      bootstrap.Modal.getInstance(modalFilme).hide()
+      new bootstrap.Modal(modalConfirmacao).show()
+    }
+
+    function deletar() {
+      setFilmes(getFilmes().filter(filme => filme.titulo !== eTituloHidden.value))
+      bootstrap.Modal.getInstance(modalConfirmacao).hide()
+      renderizar()
+    }
+
+    renderizar()
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
